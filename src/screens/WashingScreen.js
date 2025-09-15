@@ -5,6 +5,12 @@ import { useAuth } from '../components/AuthContext';
 import CustomButton from '../components/CustomButton';
 import Colors from '../components/Colors';
 import MyCalendar from '../components/MyCalendar';
+import {
+    ALERT_TYPE,
+    Dialog,
+    Toast,
+    AlertNotificationRoot,
+} from 'react-native-alert-notification';
 
 export default function WashingScreen() {
     const [secilenSaat, setSecilenSaat] = useState(null);
@@ -27,14 +33,13 @@ export default function WashingScreen() {
 
     async function handleReservation(type, date, time) {
         if (!type || !date || !time) {
-            alert("Lütfen tarih, saat ve makine tipini seçiniz.");
-            return;
+            Toast.show({
+                type: ALERT_TYPE.WARNING,
+                title: 'Uyarı',
+                textBody: 'Lütfen tüm alanları doldurunuz.',
+            });
+            return
         }
-        if (!user || !user.id) {
-            alert("Kullanıcı bilgisi bulunamadı. Lütfen tekrar giriş yapın.");
-            return;
-        }
-
         setLoading(true);
 
         try {
@@ -52,7 +57,11 @@ export default function WashingScreen() {
             const ayniTipRezVar = mevcutRez.some(rez => rez.makineler.tip === dbTip);
 
             if (ayniTipRezVar) {
-                alert(`Bu tarih için zaten bir "${type}" rezervasyonunuz bulunmaktadır.`);
+                Toast.show({
+                    type: ALERT_TYPE.WARNING,
+                    title: 'Hata',
+                    textBody: `Bu tarih için zaten bir "${type}" rezervasyonunuz bulunmaktadır.`,
+                });
                 setLoading(false);
                 return;
             }
@@ -65,79 +74,93 @@ export default function WashingScreen() {
 
             if (error) throw error;
             if (makineNo) {
-                alert(`Rezervasyonunuz başarıyla oluşturuldu! Makine No: ${makineNo}`);
+                Dialog.show({
+                    type: ALERT_TYPE.SUCCESS,
+                    title: 'Başarılı',
+                    textBody: `Rezervasyonunuz başarıyla oluşturuldu! Makine No: ${makineNo}`,
+                });
                 setTarih(null);
                 setSecilenSaat(null);
                 setTip(null);
             } else {
-                alert(`Seçtiğiniz saatte boş ${type} makinesi bulunmamaktadır.`);
+                Toast.show({
+                    type: ALERT_TYPE.WARNING,
+                    title: 'Hata',
+                    textBody: `Seçtiğiniz saatte boş ${type} makinesi bulunmamaktadır.`,
+                });
             }
 
         } catch (err) {
             console.error("Rezervasyon hatası:", err.message);
-            alert("Rezervasyon sırasında bir hata oluştu. Lütfen tekrar deneyin.");
+            Toast.show({
+                type: ALERT_TYPE.DANGER,
+                title: 'Hata',
+                textBody: "Rezervasyon sırasında bir hata oluştu. Lütfen tekrar deneyin.",
+            });
         } finally {
             setLoading(false);
         }
     }
 
     return (
-        <ScrollView contentContainerStyle={styles.container}>
-            <View style={{ width: '90%' }}>
-                <MyCalendar
-                    onDayPress={(date) => setTarih(date)}
-                    markedDate={tarih}
+        <AlertNotificationRoot>
+            <ScrollView contentContainerStyle={styles.container}>
+                <View style={{ width: '90%' }}>
+                    <MyCalendar
+                        onDayPress={(date) => setTarih(date)}
+                        markedDate={tarih}
+                    />
+                </View>
+
+                <View style={styles.saatCont}>
+                    <Text style={styles.sectionTitle}>Saat Seçiniz</Text>
+                    <View style={styles.saatFooter}>
+                        {saatler.map((saat) => (
+                            <TouchableOpacity
+                                key={saat.value}
+                                style={[
+                                    styles.timeSlotButton,
+                                    secilenSaat === saat.value ? styles.selectedTimeSlot : styles.unselectedTimeSlot
+                                ]}
+                                onPress={() => setSecilenSaat(saat.value)}
+                            >
+                                <Text style={[
+                                    styles.timeSlotText,
+                                    secilenSaat === saat.value ? styles.selectedTimeText : styles.unselectedTimeText
+                                ]}>
+                                    {saat.label}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                </View>
+
+                <View style={styles.sectionContainer}>
+                    <Text style={styles.sectionTitle}>Makine Tipini Seçiniz</Text>
+                    <View style={styles.machineTypeContainer}>
+                        {["Çamaşır", "Kurutma"].map((mTip) => (
+                            <TouchableOpacity
+                                key={mTip}
+                                style={[styles.typeButton, tip === mTip ? styles.selectedType : styles.unselectedType]}
+                                onPress={() => setTip(mTip)}
+                            >
+                                <Text style={[styles.typeButtonText, tip === mTip ? styles.selectedTypeText : styles.unselectedTypeText]}>
+                                    {mTip}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                </View>
+
+                <CustomButton
+                    buttonTxt={"Rezervasyon Yap"}
+                    onPress={() => handleReservation(tip, tarih, secilenSaat)}
+                    disabled={loading}
+                    style={styles.Btn}
                 />
-            </View>
-
-            <View style={styles.saatCont}>
-                <Text style={styles.sectionTitle}>Saat Seçiniz</Text>
-                <View style={styles.saatFooter}>
-                    {saatler.map((saat) => (
-                        <TouchableOpacity
-                            key={saat.value}
-                            style={[
-                                styles.timeSlotButton,
-                                secilenSaat === saat.value ? styles.selectedTimeSlot : styles.unselectedTimeSlot
-                            ]}
-                            onPress={() => setSecilenSaat(saat.value)}
-                        >
-                            <Text style={[
-                                styles.timeSlotText,
-                                secilenSaat === saat.value ? styles.selectedTimeText : styles.unselectedTimeText
-                            ]}>
-                                {saat.label}
-                            </Text>
-                        </TouchableOpacity>
-                    ))}
-                </View>
-            </View>
-
-            <View style={styles.sectionContainer}>
-                <Text style={styles.sectionTitle}>Makine Tipini Seçiniz</Text>
-                <View style={styles.machineTypeContainer}>
-                    {["Çamaşır", "Kurutma"].map((mTip) => (
-                        <TouchableOpacity
-                            key={mTip}
-                            style={[styles.typeButton, tip === mTip ? styles.selectedType : styles.unselectedType]}
-                            onPress={() => setTip(mTip)}
-                        >
-                            <Text style={[styles.typeButtonText, tip === mTip ? styles.selectedTypeText : styles.unselectedTypeText]}>
-                                {mTip}
-                            </Text>
-                        </TouchableOpacity>
-                    ))}
-                </View>
-            </View>
-
-            <CustomButton
-                buttonTxt={"Rezervasyon Yap"}
-                onPress={() => handleReservation(tip, tarih, secilenSaat)}
-                disabled={loading}
-                style={styles.Btn}
-            />
-            {loading && <ActivityIndicator size="large" color={Colors.info} style={{ marginTop: 20 }} />}
-        </ScrollView>
+                {loading && <ActivityIndicator size="large" color={Colors.info} style={{ marginTop: 20 }} />}
+            </ScrollView>
+        </AlertNotificationRoot>
     );
 }
 
